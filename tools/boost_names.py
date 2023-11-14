@@ -96,6 +96,7 @@ def get_library_names(jamfile):
     with open(jamfile) as jamfh:
         jam = jamfh.read()
         res = re.finditer(r'^lib[\s]+([A-Za-z0-9_]+)([^;]*);', jam, re.MULTILINE | re.DOTALL)
+        
         for matches in res:
             if ':' in matches.group(2):
                 libs.append(matches.group(1))
@@ -111,19 +112,11 @@ def exists(modules, module):
 def get_modules(init=extra):
     modules = init
     for directory in os.listdir(LIBS):
-        if not os.path.isdir(os.path.join(LIBS, directory)):
-            continue
-        if directory in not_modules:
+        if not os.path.isdir(os.path.join(LIBS, directory)) or directory in not_modules:
             continue
         jamfile = os.path.join(LIBS, directory, 'build', 'Jamfile.v2')
-        if os.path.isfile(jamfile):
-            libs = get_library_names(jamfile)
-        else:
-            libs = []
-        if directory in manual_map.keys():
-            modname = manual_map[directory]
-        else:
-            modname = directory.replace('_', ' ').title()
+        libs = get_library_names(jamfile) if os.path.isfile(jamfile) else []
+        modname = manual_map[directory] if directory in manual_map.keys() else directory.replace('_', ' ').title()
         modules.append(Module(directory, modname, libs))
     return modules
 
@@ -138,10 +131,7 @@ def get_modules_2():
                 projectdir = os.path.dirname(root)
 
                 jamfile = os.path.join(projectdir, 'build', 'Jamfile.v2')
-                if os.path.isfile(jamfile):
-                    libs = get_library_names(jamfile)
-                else:
-                    libs = []
+                libs = get_library_names(jamfile) if os.path.isfile(jamfile) else []
 
                 # Get metadata for module
                 jsonfile = os.path.join(root, f)
@@ -166,15 +156,10 @@ def main(args):
 
     # It will pick jsonless algorithm if 1 is given as argument
     impl = 0
-    if len(args) > 1:
-        if args[1] == '1':
-            impl = 1
+    if len(args) > 1 and args[1] == '1':
+        impl = 1
 
-    if impl == 1:
-        modules = get_modules()
-    else:
-        modules = get_modules_2()
-
+    modules = get_modules() if impl == 1 else get_modules_2()
     sorted_modules = sorted(modules, key=lambda module: module.name.lower())
     sorted_modules = [x[2] for x in sorted_modules if x[2]]
     sorted_modules = sum(sorted_modules, [])
